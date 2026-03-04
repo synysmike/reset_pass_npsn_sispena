@@ -17,6 +17,11 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 SISPENA_USERNAME = os.environ.get("SISPENA_USERNAME")
 SISPENA_PASSWORD = os.environ.get("SISPENA_PASSWORD")
 
+CREDIT = (
+    "Terimakasih sudah menggunakan Aplikasi reset password dari Ir.Teguh (https://github.com/synysmike), "
+    "mohon dukungannya dengan memberikan like pada project ini: https://github.com/synysmike/reset_pass_npsn_sispena"
+)
+
 
 def login_helper(username, password):
     info = {"username": username, "password": password}
@@ -91,19 +96,19 @@ def do_reset_by_npsn(npsn, new_password=None):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (update.message and update.message.text or "").strip()
     if not text:
-        await update.message.reply_text("Kirim NPSN sekolah (angka saja).")
+        await update.message.reply_text("Kirim NPSN sekolah (angka saja).\n\n" + CREDIT)
         return
     npsn = text.split()[0] if text else ""
     loop = asyncio.get_event_loop()
     success, msg = await loop.run_in_executor(
         None, do_reset_by_npsn, npsn, None
     )
-    await update.message.reply_text(msg)
+    await update.message.reply_text(f"{msg}\n\n{CREDIT}")
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Kirim NPSN sekolah untuk mereset password.\nContoh: 20411899"
+        "Kirim NPSN sekolah untuk mereset password.\nContoh: 20411899\n\n" + CREDIT
     )
 
 
@@ -114,6 +119,8 @@ def run_bot():
         raise RuntimeError("Set SISPENA_USERNAME and SISPENA_PASSWORD in .env.")
     if login_helper(SISPENA_USERNAME, SISPENA_PASSWORD) != 200:
         raise RuntimeError("Login Sispena gagal. Cek username/password.")
+    print(CREDIT)
+    print()
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
