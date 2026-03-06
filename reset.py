@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import re
 import requests
@@ -9,6 +10,12 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 load_dotenv()
 
 session = requests.Session()
+# Supaya server mengembalikan JSON, bukan HTML (banyak aplikasi Sispena memeriksa ini)
+session.headers.update({
+    "X-Requested-With": "XMLHttpRequest",
+    "Accept": "application/json",
+    "Referer": "https://apps.ban-pdm.id/sispena3/sekolah",
+})
 
 AJAX_LIST_URL = "https://apps.ban-pdm.id/sispena3/sekolah/ajax_list"
 AJAX_UPDATE_URL = "https://apps.ban-pdm.id/sispena3/sekolah/ajax_update"
@@ -56,7 +63,15 @@ def get_sekolah_id_by_npsn(npsn):
     params = build_datatable_params(npsn)
     r = session.post(AJAX_LIST_URL, data=params)
     r.raise_for_status()
-    data = r.json()
+    text = r.text.strip()
+    if not text:
+        raise requests.RequestException("Respons server kosong (mungkin sesi habis atau NPSN di luar wilayah akses).")
+    try:
+        data = r.json()
+    except json.JSONDecodeError:
+        raise requests.RequestException(
+            "Respons server bukan JSON (mungkin sesi habis—coba restart bot, atau NPSN di luar wilayah akses)."
+        )
     rows = data.get("data") or []
     if not rows:
         return None
@@ -91,6 +106,8 @@ def do_reset_by_npsn(npsn, new_password=None):
         return True, f"NPSN {npsn} telah berhasil direset."
     except requests.RequestException as e:
         return False, f"Gagal reset NPSN {npsn}: {e}"
+    except json.JSONDecodeError as e:
+        return False, f"Gagal reset NPSN {npsn}: respons server tidak valid. Coba restart bot atau cek NPSN/wilayah akses."
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
