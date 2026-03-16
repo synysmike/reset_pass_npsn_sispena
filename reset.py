@@ -39,6 +39,14 @@ def login_helper(username, password):
     return 401
 
 
+def logout_helper():
+    """
+    Clear Sispena session after finishing one reset flow.
+    If Sispena later requires a specific logout URL, it can be added here.
+    """
+    session.cookies.clear()
+
+
 def build_datatable_params(npsn, draw=1, start=0, length=10):
     """Build simplified DataTables server-side params for NPSN search."""
     params = {
@@ -99,11 +107,18 @@ def do_reset_by_npsn(npsn, new_password=None):
         return False, "NPSN tidak valid. Kirim angka NPSN saja (contoh: 20411899)."
     password = new_password if new_password is not None else npsn
     try:
+        # Login setiap kali sebelum reset password
+        if login_helper(SISPENA_USERNAME, SISPENA_PASSWORD) != 200:
+            return False, "Login ke Sispena gagal."
+
         sekolah_id = get_sekolah_id_by_npsn(npsn)
         if not sekolah_id:
             return False, f"NPSN {npsn} tidak ditemukan."
         reset_password(sekolah_id, password)
         return True, f"NPSN {npsn} telah berhasil direset."
+    finally:
+        # Logout setelah satu proses reset selesai untuk mengosongkan sesi
+        logout_helper()
     except requests.RequestException as e:
         return False, f"Gagal reset NPSN {npsn}: {e}"
     except json.JSONDecodeError as e:
